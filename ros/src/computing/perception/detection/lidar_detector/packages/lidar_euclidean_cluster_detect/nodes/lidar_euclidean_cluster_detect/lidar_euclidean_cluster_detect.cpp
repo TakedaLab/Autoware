@@ -139,7 +139,7 @@ static std::chrono::system_clock::time_point _start, _end;
 
 std::vector<std::vector<geometry_msgs::Point>> _way_area_points;
 std::vector<cv::Scalar> _colors;
-pcl::PointCloud<pcl::PointXYZ> _sensor_cloud;
+pcl::PointCloud<pcl::PointXYZI> _sensor_cloud;
 visualization_msgs::Marker _visualization_marker;
 
 std::vector<double> _clustering_thresholds;
@@ -321,7 +321,7 @@ void publishBoundingBoxArray(const ros::Publisher* in_publisher, const jsk_recog
 	}
 }
 
-void publishCloud(const ros::Publisher* in_publisher, const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_to_publish_ptr)
+void publishCloud(const ros::Publisher* in_publisher, const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_to_publish_ptr)
 {
 	sensor_msgs::PointCloud2 cloud_msg;
 	pcl::toROSMsg(*in_cloud_to_publish_ptr, cloud_msg);
@@ -329,7 +329,7 @@ void publishCloud(const ros::Publisher* in_publisher, const pcl::PointCloud<pcl:
 	in_publisher->publish(cloud_msg);
 }
 
-void publishColorCloud(const ros::Publisher* in_publisher, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr in_cloud_to_publish_ptr)
+void publishColorCloud(const ros::Publisher* in_publisher, const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr in_cloud_to_publish_ptr)
 {
 	sensor_msgs::PointCloud2 cloud_msg;
 	pcl::toROSMsg(*in_cloud_to_publish_ptr, cloud_msg);
@@ -337,15 +337,15 @@ void publishColorCloud(const ros::Publisher* in_publisher, const pcl::PointCloud
 	in_publisher->publish(cloud_msg);
 }
 
-void keepLanePoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
-					pcl::PointCloud<pcl::PointXYZ>::Ptr out_cloud_ptr,
+void keepLanePoints(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr,
+					pcl::PointCloud<pcl::PointXYZI>::Ptr out_cloud_ptr,
 					float in_left_lane_threshold = 1.5,
 					float in_right_lane_threshold = 1.5)
 {
 	pcl::PointIndices::Ptr far_indices (new pcl::PointIndices);
 	for(unsigned int i=0; i< in_cloud_ptr->points.size(); i++)
 	{
-		pcl::PointXYZ current_point;
+		pcl::PointXYZI current_point;
 		current_point.x=in_cloud_ptr->points[i].x;
 		current_point.y=in_cloud_ptr->points[i].y;
 		current_point.z=in_cloud_ptr->points[i].z;
@@ -358,7 +358,7 @@ void keepLanePoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 		}
 	}
 	out_cloud_ptr->points.clear();
-	pcl::ExtractIndices<pcl::PointXYZ> extract;
+	pcl::ExtractIndices<pcl::PointXYZI> extract;
 	extract.setInputCloud (in_cloud_ptr);
 	extract.setIndices(far_indices);
 	extract.setNegative(true);//true removes the indices, false leaves only the indices
@@ -366,8 +366,8 @@ void keepLanePoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 }
 
 #ifdef GPU_CLUSTERING
-std::vector<ClusterPtr> clusterAndColorGpu(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
-											pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud_ptr,
+std::vector<ClusterPtr> clusterAndColorGpu(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr,
+											pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out_cloud_ptr,
 											jsk_recognition_msgs::BoundingBoxArray& in_out_boundingbox_array,
 											autoware_msgs::centroids& in_out_centroids,
 											double in_max_cluster_distance=0.5)
@@ -388,7 +388,7 @@ std::vector<ClusterPtr> clusterAndColorGpu(const pcl::PointCloud<pcl::PointXYZ>:
 	tmp_z = (float *)malloc(sizeof(float) * size);
 
 	for (int i = 0; i < size; i++) {
-		pcl::PointXYZ tmp_point = in_cloud_ptr->at(i);
+		pcl::PointXYZI tmp_point = in_cloud_ptr->at(i);
 
 		tmp_x[i] = tmp_point.x;
 		tmp_y[i] = tmp_point.y;
@@ -423,16 +423,16 @@ std::vector<ClusterPtr> clusterAndColorGpu(const pcl::PointCloud<pcl::PointXYZ>:
 }
 #endif
 
-std::vector<ClusterPtr> clusterAndColor(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud_ptr,
+std::vector<ClusterPtr> clusterAndColor(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr,
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out_cloud_ptr,
 		jsk_recognition_msgs::BoundingBoxArray& in_out_boundingbox_array,
 		autoware_msgs::centroids& in_out_centroids,
 		double in_max_cluster_distance=0.5)
 {
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+	pcl::search::KdTree<pcl::PointXYZI>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZI>);
 
 	//create 2d pc
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_2d(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_2d(new pcl::PointCloud<pcl::PointXYZI>);
 	pcl::copyPointCloud(*in_cloud_ptr, *cloud_2d);
 	//make it flat
 	for (size_t i=0; i<cloud_2d->points.size(); i++)
@@ -446,7 +446,7 @@ std::vector<ClusterPtr> clusterAndColor(const pcl::PointCloud<pcl::PointXYZ>::Pt
 	std::vector<pcl::PointIndices> cluster_indices;
 
 	//perform clustering on 2d cloud
-	pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+	pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
 	ec.setClusterTolerance (in_max_cluster_distance); //
 	ec.setMinClusterSize (_cluster_size_min);
 	ec.setMaxClusterSize (_cluster_size_max);
@@ -455,7 +455,7 @@ std::vector<ClusterPtr> clusterAndColor(const pcl::PointCloud<pcl::PointXYZ>::Pt
 	ec.extract (cluster_indices);
 	//use indices on 3d cloud
 
-	/*pcl::ConditionalEuclideanClustering<pcl::PointXYZ> cec (true);
+	/*pcl::ConditionalEuclideanClustering<pcl::PointXYZI> cec (true);
 	cec.setInputCloud (in_cloud_ptr);
 	cec.setConditionFunction (&independentDistance);
 	cec.setMinClusterSize (cluster_size_min);
@@ -487,12 +487,12 @@ std::vector<ClusterPtr> clusterAndColor(const pcl::PointCloud<pcl::PointXYZ>::Pt
 void checkClusterMerge(size_t in_cluster_id, std::vector<ClusterPtr>& in_clusters, std::vector<bool>& in_out_visited_clusters, std::vector<size_t>& out_merge_indices, double in_merge_threshold)
 {
 	//std::cout << "checkClusterMerge" << std::endl;
-	pcl::PointXYZ point_a = in_clusters[in_cluster_id]->GetCentroid();
+	pcl::PointXYZI point_a = in_clusters[in_cluster_id]->GetCentroid();
 	for(size_t i=0; i< in_clusters.size(); i++)
 	{
 		if (i != in_cluster_id && !in_out_visited_clusters[i])
 		{
-			pcl::PointXYZ point_b = in_clusters[i]->GetCentroid();
+			pcl::PointXYZI point_b = in_clusters[i]->GetCentroid();
 			double distance = sqrt( pow(point_b.x - point_a.x,2) + pow(point_b.y - point_a.y,2) );
 			if (distance <= in_merge_threshold)
 			{
@@ -508,8 +508,8 @@ void checkClusterMerge(size_t in_cluster_id, std::vector<ClusterPtr>& in_cluster
 void mergeClusters(const std::vector<ClusterPtr>& in_clusters, std::vector<ClusterPtr>& out_clusters, std::vector<size_t> in_merge_indices, const size_t& current_index, std::vector<bool>& in_out_merged_clusters)
 {
 	//std::cout << "mergeClusters:" << in_merge_indices.size() << std::endl;
-	pcl::PointCloud<pcl::PointXYZRGB> sum_cloud;
-	pcl::PointCloud<pcl::PointXYZ> mono_cloud;
+	pcl::PointCloud<pcl::PointXYZRGBA> sum_cloud;
+	pcl::PointCloud<pcl::PointXYZI> mono_cloud;
 	ClusterPtr merged_cluster(new Cluster());
 	for (size_t i=0; i<in_merge_indices.size(); i++)
 	{
@@ -560,8 +560,8 @@ void checkAllForMerge(std::vector<ClusterPtr>& in_clusters, std::vector<ClusterP
 	//ClusterPtr cluster(new Cluster());
 }
 
-void segmentByDistance(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud_ptr,
+void segmentByDistance(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr,
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out_cloud_ptr,
 		jsk_recognition_msgs::BoundingBoxArray& in_out_boundingbox_array,
 		autoware_msgs::centroids& in_out_centroids,
 		autoware_msgs::CloudClusterArray& in_out_clusters,
@@ -577,20 +577,21 @@ void segmentByDistance(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 	//3 => 45-60 d=2.1
 	//4 => >60   d=2.6
 
-	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_segments_array(5);
+	std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloud_segments_array(5);
 
 	for(unsigned int i=0; i<cloud_segments_array.size(); i++)
 	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZI>);
 		cloud_segments_array[i] = tmp_cloud;
 	}
 
 	for (unsigned int i=0; i<in_cloud_ptr->points.size(); i++)
 	{
-		pcl::PointXYZ current_point;
+		pcl::PointXYZI current_point;
 		current_point.x = in_cloud_ptr->points[i].x;
 		current_point.y = in_cloud_ptr->points[i].y;
 		current_point.z = in_cloud_ptr->points[i].z;
+		current_point.intensity = in_cloud_ptr->points[i].intensity;
 
 		float origin_distance = sqrt( pow(current_point.x,2) + pow(current_point.y,2) );
 
@@ -650,7 +651,7 @@ void segmentByDistance(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 #pragma omp for
 			for (unsigned int i = 0; i < final_clusters.size(); i++)
 			{
-				pcl::PointXYZ pcl_centroid = final_clusters[i]->GetCentroid();
+				pcl::PointXYZI pcl_centroid = final_clusters[i]->GetCentroid();
 
 				geometry_msgs::Point original_centroid_point, final_centroid_point;
 				original_centroid_point.x = pcl_centroid.x;
@@ -705,9 +706,9 @@ void segmentByDistance(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 		pictogram_cluster.character = std::to_string( i );
 		//PICTO
 
-		//pcl::PointXYZ min_point = final_clusters[i]->GetMinPoint();
-		//pcl::PointXYZ max_point = final_clusters[i]->GetMaxPoint();
-		pcl::PointXYZ center_point = final_clusters[i]->GetCentroid();
+		//pcl::PointXYZI min_point = final_clusters[i]->GetMinPoint();
+		//pcl::PointXYZI max_point = final_clusters[i]->GetMaxPoint();
+		pcl::PointXYZI center_point = final_clusters[i]->GetCentroid();
 		geometry_msgs::Point centroid;
 		centroid.x = center_point.x; centroid.y = center_point.y; centroid.z = center_point.z;
 		bounding_box.header = _velodyne_header;
@@ -738,11 +739,11 @@ void segmentByDistance(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr,
 
 }
 
-void removeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_nofloor_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_onlyfloor_cloud_ptr, float in_max_height=0.2, float in_floor_max_angle=0.1)
+void removeFloor(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr out_nofloor_cloud_ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr out_onlyfloor_cloud_ptr, float in_max_height=0.2, float in_floor_max_angle=0.1)
 {
 	/*pcl::PointIndicesPtr ground (new pcl::PointIndices);
 	// Create the filtering object
-	pcl::ProgressiveMorphologicalFilter<pcl::PointXYZ> pmf;
+	pcl::ProgressiveMorphologicalFilter<pcl::PointXYZI> pmf;
 	pmf.setInputCloud (in_cloud_ptr);
 	pmf.setMaxWindowSize (20);
 	pmf.setSlope (1.0f);
@@ -751,7 +752,7 @@ void removeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::Po
 	pmf.extract (ground->indices);
 
 	// Create the filtering object
-	pcl::ExtractIndices<pcl::PointXYZ> extract;
+	pcl::ExtractIndices<pcl::PointXYZI> extract;
 	extract.setInputCloud (in_cloud_ptr);
 	extract.setIndices (ground);
 	extract.setNegative(true);//true removes the indices, false leaves only the indices
@@ -761,7 +762,7 @@ void removeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::Po
 	extract.setNegative(false);//true removes the indices, false leaves only the indices
 	extract.filter(*out_onlyfloor_cloud_ptr);*/
 
-	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	pcl::SACSegmentation<pcl::PointXYZI> seg;
 	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
 
@@ -782,7 +783,7 @@ void removeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::Po
 	}
 
 	//REMOVE THE FLOOR FROM THE CLOUD
-	pcl::ExtractIndices<pcl::PointXYZ> extract;
+	pcl::ExtractIndices<pcl::PointXYZI> extract;
 	extract.setInputCloud (in_cloud_ptr);
 	extract.setIndices(inliers);
 	extract.setNegative(true);//true removes the indices, false leaves only the indices
@@ -793,15 +794,15 @@ void removeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::Po
 	extract.filter(*out_onlyfloor_cloud_ptr);
 }
 
-void downsampleCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_cloud_ptr, float in_leaf_size=0.2)
+void downsampleCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr out_cloud_ptr, float in_leaf_size=0.2)
 {
-	pcl::VoxelGrid<pcl::PointXYZ> sor;
+	pcl::VoxelGrid<pcl::PointXYZI> sor;
 	sor.setInputCloud(in_cloud_ptr);
 	sor.setLeafSize((float)in_leaf_size, (float)in_leaf_size, (float)in_leaf_size);
 	sor.filter(*out_cloud_ptr);
 }
 
-void clipCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_cloud_ptr, float in_min_height=-1.3, float in_max_height=0.5)
+void clipCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr out_cloud_ptr, float in_min_height=-1.3, float in_max_height=0.5)
 {
 	out_cloud_ptr->points.clear();
 	for (unsigned int i=0; i<in_cloud_ptr->points.size(); i++)
@@ -814,26 +815,26 @@ void clipCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::Poin
 	}
 }
 
-void differenceNormalsSegmentation(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_cloud_ptr)
+void differenceNormalsSegmentation(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr out_cloud_ptr)
 {
 	float small_scale=0.5;
 	float large_scale=2.0;
 	float angle_threshold=0.5;
-	pcl::search::Search<pcl::PointXYZ>::Ptr tree;
+	pcl::search::Search<pcl::PointXYZI>::Ptr tree;
 	if (in_cloud_ptr->isOrganized ())
 	{
-		tree.reset (new pcl::search::OrganizedNeighbor<pcl::PointXYZ> ());
+		tree.reset (new pcl::search::OrganizedNeighbor<pcl::PointXYZI> ());
 	}
 	else
 	{
-		tree.reset (new pcl::search::KdTree<pcl::PointXYZ> (false));
+		tree.reset (new pcl::search::KdTree<pcl::PointXYZI> (false));
 	}
 
 	// Set the input pointcloud for the search tree
 	tree->setInputCloud (in_cloud_ptr);
 
-	pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::PointNormal> normal_estimation;
-	//pcl::gpu::NormalEstimation<pcl::PointXYZ, pcl::PointNormal> normal_estimation;
+	pcl::NormalEstimationOMP<pcl::PointXYZI, pcl::PointNormal> normal_estimation;
+	//pcl::gpu::NormalEstimation<pcl::PointXYZI, pcl::PointNormal> normal_estimation;
 	normal_estimation.setInputCloud (in_cloud_ptr);
 	normal_estimation.setSearchMethod (tree);
 
@@ -849,10 +850,10 @@ void differenceNormalsSegmentation(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_
 	normal_estimation.compute (*normals_large_scale);
 
 	pcl::PointCloud<pcl::PointNormal>::Ptr diffnormals_cloud (new pcl::PointCloud<pcl::PointNormal>);
-	pcl::copyPointCloud<pcl::PointXYZ, pcl::PointNormal>(*in_cloud_ptr, *diffnormals_cloud);
+	pcl::copyPointCloud<pcl::PointXYZI, pcl::PointNormal>(*in_cloud_ptr, *diffnormals_cloud);
 
 	// Create DoN operator
-	pcl::DifferenceOfNormalsEstimation<pcl::PointXYZ, pcl::PointNormal, pcl::PointNormal> diffnormals_estimator;
+	pcl::DifferenceOfNormalsEstimation<pcl::PointXYZI, pcl::PointNormal, pcl::PointNormal> diffnormals_estimator;
 	diffnormals_estimator.setInputCloud (in_cloud_ptr);
 	diffnormals_estimator.setNormalScaleLarge (normals_large_scale);
 	diffnormals_estimator.setNormalScaleSmall (normals_small_scale);
@@ -875,10 +876,10 @@ void differenceNormalsSegmentation(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_
 	// Apply filter
 	cond_removal.filter (*diffnormals_cloud_filtered);
 
-	pcl::copyPointCloud<pcl::PointNormal, pcl::PointXYZ>(*diffnormals_cloud, *out_cloud_ptr);
+	pcl::copyPointCloud<pcl::PointNormal, pcl::PointXYZI>(*diffnormals_cloud, *out_cloud_ptr);
 }
 
-void removePointsUpTo(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_cloud_ptr, const double in_distance)
+void removePointsUpTo(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr out_cloud_ptr, const double in_distance)
 {
 	out_cloud_ptr->points.clear();
 	for (unsigned int i=0; i<in_cloud_ptr->points.size(); i++)
@@ -899,15 +900,15 @@ void velodyne_callback(const sensor_msgs::PointCloud2ConstPtr& in_sensor_cloud)
 	{
 		_using_sensor_cloud = true;
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr current_sensor_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr removed_points_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr inlanes_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr nofloor_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr onlyfloor_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr diffnormals_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr clipped_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_clustered_cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr current_sensor_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr removed_points_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr downsampled_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr inlanes_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr nofloor_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr onlyfloor_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr diffnormals_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZI>::Ptr clipped_cloud_ptr (new pcl::PointCloud<pcl::PointXYZI>);
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_clustered_cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
 		autoware_msgs::centroids centroids;
 		autoware_msgs::CloudClusterArray cloud_clusters;
@@ -986,8 +987,8 @@ void vectormap_callback(const visualization_msgs::MarkerArray::Ptr in_vectormap_
 {
 	float min_x=std::numeric_limits<float>::max();float max_x=-std::numeric_limits<float>::max();
 	float min_y=std::numeric_limits<float>::max();float max_y=-std::numeric_limits<float>::max();
-	pcl::PointXYZ min_point;
-	pcl::PointXYZ max_point;
+	pcl::PointXYZI min_point;
+	pcl::PointXYZI max_point;
 	std::vector<geometry_msgs::Point> vectormap_points;
 	std::string marker_frame;
 	double map_scale = -10.0;

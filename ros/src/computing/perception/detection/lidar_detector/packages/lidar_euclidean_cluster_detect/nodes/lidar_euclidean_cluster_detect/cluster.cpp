@@ -22,27 +22,27 @@ jsk_recognition_msgs::BoundingBox Cluster::GetBoundingBox()
 	return bounding_box_;
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr Cluster::GetCloud()
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr Cluster::GetCloud()
 {
 	return pointcloud_;
 }
 
-pcl::PointXYZ Cluster::GetMinPoint()
+pcl::PointXYZI Cluster::GetMinPoint()
 {
 	return min_point_;
 }
 
-pcl::PointXYZ Cluster::GetMaxPoint()
+pcl::PointXYZI Cluster::GetMaxPoint()
 {
 	return max_point_;
 }
 
-pcl::PointXYZ Cluster::GetCentroid()
+pcl::PointXYZI Cluster::GetCentroid()
 {
 	return centroid_;
 }
 
-pcl::PointXYZ Cluster::GetAveragePoint()
+pcl::PointXYZI Cluster::GetAveragePoint()
 {
 	return average_point_;
 }
@@ -65,9 +65,19 @@ Eigen::Vector3f Cluster::GetEigenValues()
 void Cluster::ToRosMessage(std_msgs::Header in_ros_header, autoware_msgs::CloudCluster& out_cluster_message)
 {
 	sensor_msgs::PointCloud2 cloud_msg;
+	pcl::PointCloud<pcl::PointXYZI>::Ptr temp_cloud (new pcl::PointCloud<pcl::PointXYZI>);
+	for (auto &point: *pointcloud_) {
+		pcl::PointXYZI p;
+		p.x = point.x;
+		p.y = point.y;
+		p.z = point.z;
+		p.intensity = point.a;
+		temp_cloud->push_back(p);
+	}
 
-	pcl::toROSMsg(*(this->GetCloud()), cloud_msg);
+	pcl::toROSMsg(*temp_cloud, cloud_msg);
 	cloud_msg.header=in_ros_header;
+
 
 	out_cluster_message.header = in_ros_header;
 
@@ -119,13 +129,13 @@ void Cluster::ToRosMessage(std_msgs::Header in_ros_header, autoware_msgs::CloudC
 	out_cluster_message.fpfh_descriptor.data = fpfh_descriptor;*/
 }
 
-void Cluster::SetCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_origin_cloud_ptr, const std::vector<int>& in_cluster_indices, std_msgs::Header in_ros_header, int in_id, int in_r, int in_g, int in_b, std::string in_label, bool in_estimate_pose)
+void Cluster::SetCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_origin_cloud_ptr, const std::vector<int>& in_cluster_indices, std_msgs::Header in_ros_header, int in_id, int in_r, int in_g, int in_b, std::string in_label, bool in_estimate_pose)
 {
 	label_ 	= in_label;	id_		= in_id;
 	r_		= in_r;	g_		= in_g;	b_		= in_b;
 	//extract pointcloud using the indices
 	//calculate min and max points
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr current_cluster (new pcl::PointCloud<pcl::PointXYZRGBA>);
 	float min_x=std::numeric_limits<float>::max();float max_x=-std::numeric_limits<float>::max();
 	float min_y=std::numeric_limits<float>::max();float max_y=-std::numeric_limits<float>::max();
 	float min_z=std::numeric_limits<float>::max();float max_z=-std::numeric_limits<float>::max();
@@ -134,10 +144,11 @@ void Cluster::SetCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_origin_cloud
 	for (auto pit = in_cluster_indices.begin(); pit != in_cluster_indices.end(); ++pit)
 	{
 		//fill new colored cluster point by point
-		pcl::PointXYZRGB p;
+		pcl::PointXYZRGBA p;
 		p.x = in_origin_cloud_ptr->points[*pit].x;
 		p.y = in_origin_cloud_ptr->points[*pit].y;
 		p.z = in_origin_cloud_ptr->points[*pit].z;
+		p.a = in_origin_cloud_ptr->points[*pit].intensity;
 		p.r = in_r;
 		p.g = in_g;
 		p.b = in_b;
@@ -261,10 +272,10 @@ void Cluster::SetCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr in_origin_cloud
 	//Get EigenValues, eigenvectors
 	if (current_cluster->points.size() > 0)
 	{
-		pcl::PCA<pcl::PointXYZ> current_cluster_pca;
-		pcl::PointCloud<pcl::PointXYZ>::Ptr current_cluster_mono (new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::PCA<pcl::PointXYZI> current_cluster_pca;
+		pcl::PointCloud<pcl::PointXYZI>::Ptr current_cluster_mono (new pcl::PointCloud<pcl::PointXYZI>);
 
-		pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*current_cluster, *current_cluster_mono);
+		pcl::copyPointCloud<pcl::PointXYZRGBA, pcl::PointXYZI>(*current_cluster, *current_cluster_mono);
 
 		current_cluster_pca.setInputCloud(current_cluster_mono);
 		eigen_vectors_ = current_cluster_pca.getEigenVectors();
@@ -279,12 +290,12 @@ std::vector<float> Cluster::GetFpfhDescriptor(const unsigned int& in_ompnum_thre
 {
 	std::vector<float> cluster_fpfh_histogram(33,0.0);
 
-	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr norm_tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
+	pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr norm_tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
 	if (pointcloud_->points.size() > 0)
 		norm_tree->setInputCloud(pointcloud_);
 
 	pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-	pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> normal_estimation;
+	pcl::NormalEstimationOMP<pcl::PointXYZRGBA, pcl::Normal> normal_estimation;
 	normal_estimation.setNumberOfThreads(in_ompnum_threads);
 	normal_estimation.setInputCloud (pointcloud_);
 	normal_estimation.setSearchMethod (norm_tree);
@@ -294,7 +305,7 @@ std::vector<float> Cluster::GetFpfhDescriptor(const unsigned int& in_ompnum_thre
 
 	pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_histograms (new pcl::PointCloud<pcl::FPFHSignature33> ());
 
-	pcl::FPFHEstimationOMP<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh;
+	pcl::FPFHEstimationOMP<pcl::PointXYZRGBA, pcl::Normal, pcl::FPFHSignature33> fpfh;
 	fpfh.setNumberOfThreads(in_ompnum_threads);
 	fpfh.setInputCloud(pointcloud_);
 	fpfh.setInputNormals(normals);
