@@ -5,6 +5,7 @@ set(ROS_VERSION $ENV{ROS_DISTRO})
 include(FindPkgConfig)
 include(FindLibXml2 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
+        autoware_build_flags
         roscpp
         rosconsole
         std_msgs
@@ -84,6 +85,7 @@ if ("${ROS_VERSION}" MATCHES "(indigo|jade|kinetic)")
             Qt5::Core
             Qt5::Widgets
             Qt5::OpenGL
+            nlopt
             )
 
 endif ()
@@ -106,7 +108,7 @@ if ("${ROS_VERSION}" MATCHES "(indigo|jade|kinetic)")
             "-DPARAM_YAML=${PARAM_YAML} -DCAMERA_YAML=${CAMERA_YAML}")
 
     target_link_libraries(calibration_test
-            ${catkin_LIBRARIES} ${OpenCV_LIBS} xml2)
+            ${catkin_LIBRARIES} ${OpenCV_LIBS} xml2 ${OPENGL_LIBRARIES})
 endif ()
 ## 3D
 if ("${ROS_VERSION}" MATCHES "(indigo|jade|kinetic)")
@@ -150,7 +152,15 @@ target_link_libraries(calibration_publisher
         ${catkin_LIBRARIES}
         )
 
-install(TARGETS calibration_publisher calibration_toolkit
+if(TARGET calibration_toolkit)
+        install(TARGETS calibration_toolkit
+                ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+                LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+                RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+                )
+endif()
+
+install(TARGETS calibration_publisher
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
