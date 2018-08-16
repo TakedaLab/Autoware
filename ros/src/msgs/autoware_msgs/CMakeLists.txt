@@ -28,10 +28,14 @@ add_message_files(
             ImageLaneObjects.msg
             ImageObjects.msg
             LaneArray.msg
+            LidarDetectedObject.msg
+            LidarDetectedObjectArray.msg
             PointsImage.msg
             ScanImage.msg
             Signals.msg
             TunedResult.msg
+            TrackedObject.msg
+            TrackedObjectArray.msg
             ValueSet.msg
             centroids.msg
             dtlane.msg
