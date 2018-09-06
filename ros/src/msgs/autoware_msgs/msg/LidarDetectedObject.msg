@@ -26,3 +26,14 @@ sensor_msgs/PointCloud2 cloud
 
 # detection score
 float32 score
+
+# whether the object is on the same lane or not
+# 0: other lane, 1: same lane
+bool on_same_lane
+
+# cut in and cut out
+# 0: neither of them, 1: cut in, 2: cut out
+int8 cut_in_and_out
+
+# status of the object
+string object_status
