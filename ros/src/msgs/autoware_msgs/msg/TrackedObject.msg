@@ -32,6 +32,10 @@ int8 EGO_LANE=1
 int8 NEXT_LANE=2
 int8 INVALID=3
 
+# the closest vehicle in front on the same lane
+# true: closest vehicle, false: not closest vehicle
+bool cipv_flag
+
 # cut in and cut out
 # 0: neither of them, 1: cut in, 2: cut out
 int8 cut_in_and_out
