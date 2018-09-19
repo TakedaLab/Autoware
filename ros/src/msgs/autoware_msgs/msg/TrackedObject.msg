@@ -24,9 +24,13 @@ geometry_msgs/Twist velocity
 # detection score
 float32 score
 
-# whether the object is on the same lane or not
-# false: other lane, true: same lane
-bool on_same_lane
+# on which lane the object exists
+# 0: not analyzed, 1: oon the same lane, 2: on the different lane, 3: unknown
+int8 lane
+int8 NOT_ASSIGNED=0
+int8 EGO_LANE=1
+int8 NEXT_LANE=2
+int8 INVALID=3
 
 # cut in and cut out
 # 0: neither of them, 1: cut in, 2: cut out
