@@ -19,7 +19,12 @@ geometry_msgs/Vector3 size
 geometry_msgs/Vector3 variance
 
 # estimated velocity of the object
-geometry_msgs/Twist velocity
+geometry_msgs/Twist absolute_velocity
+geometry_msgs/Twist relative_velocity
+
+# GPS info
+float64 lat
+float64 lon
 
 # detection score
 float32 score
@@ -37,10 +42,12 @@ int8 INVALID=3
 bool cipv_flag
 
 # cut in and cut out
-# 0: neither of them, 1: cut in, 2: cut out
 int8 cut_in_and_out
-int8 CUT_IN=1
-int8 CUT_OUT=2
+int8 UNDEFINED=0
+int8 IN_HOST_LANE=1
+int8 OUT_HOST_LANE=2
+int8 CUT_IN=3
+int8 CUT_OUT=4
 
 # status of the object
 string object_status
