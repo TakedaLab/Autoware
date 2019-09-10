@@ -63,7 +63,7 @@ namespace points_accumulator {
     ros::NodeHandle pnh_;
 
     // publisher
-    ros::Publisher accumulated_points_publisher_;
+    ros::Publisher accumulated_points_publisher_, estimated_velocity_publisher_;
 
     int number_of_accumulations_ = 5;
     bool use_current_velocity_, remove_points_negative_z_;

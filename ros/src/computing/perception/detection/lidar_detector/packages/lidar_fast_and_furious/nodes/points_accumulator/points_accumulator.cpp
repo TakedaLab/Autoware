@@ -75,7 +75,18 @@ namespace points_accumulator {
     pcl_ros::transformPointCloud(output_frame_id_, *cloud, *cloud, tf_listener_);
 
     // Apply NDT and calculate transformation
+    ros::Duration dt = msg->header.stamp - previous_scan_time_;
     Eigen::Matrix4f mat_diff = estimateDifference(cloud);
+
+    // Calculate velocity
+    double vx = 0.0, vy = 0.0, vz = 0.0;
+    try {
+      vx = mat_diff(0, 3) / dt.toSec();
+      vy = mat_diff(1, 3) / dt.toSec();
+      vz = mat_diff(2, 3) / dt.toSec();
+    } catch (char *str) {
+      std::cerr << str;
+    }
 
     // Convert to PointCloud
     pcl::PointCloud<pcl::PointXYZI> pointcloud;
@@ -104,10 +115,20 @@ namespace points_accumulator {
     cloud_to_publish->header = msg->header;
     accumulated_points_publisher_.publish(*cloud_to_publish);
 
+    // Publish velocity
+    geometry_msgs::TwistStamped velocity;
+    velocity.header.stamp = msg->header.stamp;
+    velocity.twist.linear.x = vx;
+    velocity.twist.linear.y = vy;
+    velocity.twist.linear.z = vz;
+    estimated_velocity_publisher_.publish(velocity);
+
   }
 
 //  void PointsAccumulator::estimateDifference(const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& cloud)
-  Eigen::Matrix4f PointsAccumulator::estimateDifference(const sensor_msgs::PointCloud2::ConstPtr& msg)
+  Eigen::Matrix4f PointsAccumulator::estimateDifference(
+          const sensor_msgs::PointCloud2::ConstPtr& msg
+          )
   {
 //    std::cout << __func__ << std::endl;
 
@@ -282,7 +303,7 @@ namespace points_accumulator {
   void PointsAccumulator::getParameters()
   {
     pnh_.param<int>("num_accumulations", number_of_accumulations_, 5);
-    pnh_.param<std::string>("topic_poincloud", topic_pointcloud_, "/points_raw");
+    pnh_.param<std::string>("topic_pointcloud", topic_pointcloud_, "/points_raw");
     pnh_.param<bool>("use_current_velocity", use_current_velocity_, false);
     pnh_.param<bool>("remove_points_negative_z", remove_points_negative_z_, false);
     pnh_.param<std::string>("topic_current_velocity", topic_current_velocity_, "/current_velocity");
@@ -352,14 +373,13 @@ namespace points_accumulator {
 
     // prepare publisher
     accumulated_points_publisher_ = nh_.advertise<sensor_msgs::PointCloud2>("points_accumulated", 1);
+    estimated_velocity_publisher_ = nh_.advertise<geometry_msgs::TwistStamped>("estimated_velocity", 1);
 
-    // subscribe points_raw and current_pose
+    // subscribe points_raw and current_velocity
     ros::Subscriber points_sub = nh_.subscribe<sensor_msgs::PointCloud2>
         (topic_pointcloud_, 1000, &PointsAccumulator::callback_points, this);
-    if (use_current_velocity_) {
-      ros::Subscriber current_velocity_sub = nh_.subscribe<geometry_msgs::TwistStamped>
-          (topic_current_velocity_, 1000, &PointsAccumulator::callback_current_velocity, this);
-    }
+    ros::Subscriber current_velocity_sub = nh_.subscribe<geometry_msgs::TwistStamped>
+        (topic_current_velocity_, 1000, &PointsAccumulator::callback_current_velocity, this);
 
     ros::Rate loop_rate(10);
     ros::spin();
