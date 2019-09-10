@@ -81,9 +81,9 @@ namespace points_accumulator {
     // Calculate velocity
     double vx = 0.0, vy = 0.0, vz = 0.0;
     try {
-      vx = mat_diff(0, 3) / dt.toSec();
-      vy = mat_diff(1, 3) / dt.toSec();
-      vz = mat_diff(2, 3) / dt.toSec();
+      vx = mat_diff(0, 3) / dt.toSec() * (-1.0);
+      vy = mat_diff(1, 3) / dt.toSec() * (-1.0);
+      vz = mat_diff(2, 3) / dt.toSec() * (-1.0);
     } catch (char *str) {
       std::cerr << str;
     }
