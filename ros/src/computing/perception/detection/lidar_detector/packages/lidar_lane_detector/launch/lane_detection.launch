@@ -2,14 +2,23 @@
 <launch>
 
   <!-- Configurations -->
-  <arg name="number_of_accumulations" default="5" />
+  <arg name="number_of_accumulations" default="10" />
   <arg name="topic_pointcloud_ref" default="/points_raw" />
   <arg name="topic_pointcloud_ground" default="/points_ground" />
   <arg name="output_frame_id" default="/velodyne" />
+  <arg name="intensity_threshold" default="10" />
+  <arg name="distance_threshold" default="1.0" />
+  <arg name="max_num_lines_left" default="5" />
+  <arg name="max_num_lines_right" default="5" />
+  <arg name="polynomial_order" default="2" />
+  <arg name="initial_lane_width" default="3.5" />
+  <arg name="initial_lane_offset" default="0.0" />
+  <arg name="marker_range" default="200.0" />
+  <arg name="marker_interval" default="1.0" />
   
-  <!-- node for ref -->
+  <!-- nodes for ref -->
   <group ns="ref">
-    <node pkg="lidar_fast_and_furious" type="points_accumulator_node" name="points_accumulator" output="screen">
+    <node pkg="lidar_lane_detector" type="points_accumulator_node" name="points_accumulator" output="screen">
       <param name="number_of_accumulations" value="$(arg number_of_accumulations)" />
       <param name="topic_pointcloud" value="$(arg topic_pointcloud_ref)" />
       <param name="use_current_velocity" value="false" />
@@ -18,9 +27,9 @@
     </node>
   </group>
 
-  <!-- node for ground -->
+  <!-- nodes for ground -->
   <group ns="ground">
-    <node pkg="lidar_fast_and_furious" type="points_accumulator_node" name="points_accumulator" output="screen">
+    <node pkg="lidar_lane_detector" type="points_accumulator_node" name="points_accumulator" output="screen">
       <param name="number_of_accumulations" value="$(arg number_of_accumulations)" />
       <param name="topic_pointcloud" value="$(arg topic_pointcloud_ground)" />
       <param name="use_current_velocity" value="true" />
@@ -28,21 +37,49 @@
       <param name="topic_current_velocity" value="/ref/estimated_velocity" />
       <param name="output_frame_id" value="$(arg output_frame_id)" />
     </node>
+
+    <!-- node for downsampling the accumulated pointcloud -->
+    <!--
+    <node pkg="nodelet" type="nodelet" name="voxel_grid" args="standalone pcl/VoxelGrid" output="screen">
+      <remap from="~input" to="points_accumulated" />
+      <remap from="~output" to="points_accumulated_downsampled" />
+      <rosparam>
+        filter_field_name: z
+        filter_limit_min: -10.0
+        filter_limit_max: 10.0
+        filter_limit_negative: False
+        leaf_size: 0.10
+      </rosparam>
+    </node>
+    -->
+    
+    <node pkg="lidar_lane_detector" type="lane_detector_node" name="lane_detector" output="screen">
+      <param name="topic_pointcloud" value="points_accumulated" />
+      <param name="intensity_threshold" value="$(arg intensity_threshold)" />
+      <param name="distance_threshold" value="$(arg distance_threshold)" />
+      <param name="max_num_lines_left" value="$(arg max_num_lines_left)" />
+      <param name="max_num_lines_right" value="$(arg max_num_lines_right)" />
+      <param name="polynomial_order" value="$(arg polynomial_order)" />
+      <param name="initial_lane_width" value="$(arg initial_lane_width)" />
+      <param name="initial_lane_offset" value="$(arg initial_lane_offset)" />
+      <param name="marker_range" value="$(arg marker_range)" />
+      <param name="marker_interval" value="$(arg marker_interval)" />
+    </node>
   </group>
 
   <!-- Configurations for ray_ground_filter -->
-  <arg name="sensor_height" default="1.0" />
+  <arg name="sensor_height" default="1.5" />
   <arg name="clipping_height" default="0.2" />
   <arg name="min_point_distance" default="1.85" />
   <arg name="radial_divider_angle" default="0.08" />
   <arg name="concentric_divider_distance" default="0.01" />
-  <arg name="local_max_slope" default="8" />
+  <arg name="local_max_slope" default="4" />
   <arg name="general_max_slope" default="5" />
   <arg name="min_height_threshold" default="0.05" />
   <arg name="reclass_distance_threshold" default="0.2" />
   <arg name="no_ground_point_topic" default="/points_no_ground" />
   <arg name="ground_point_topic" default="/points_ground" />
-  
+
   <!-- rosrun points_preprocessor ray_ground_filter -->
   <node pkg="points_preprocessor" type="ray_ground_filter" name="ray_ground_filter" output="screen">
     <param name="input_point_topic" value="$(arg topic_pointcloud_ref)" />

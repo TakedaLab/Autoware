@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-    <name>lidar_fast_and_furious</name>
+    <name>lidar_lane_detector</name>
     <version>0.1.0</version>
-    <description>The lidar_fast_and_furious package</description>
+    <description>The lidar_lane_detector package</description>
     <maintainer email="hayashi.daiki@nagoya-u.jp">hayashi.daiki</maintainer>
     <license>BSD</license>
     <buildtool_depend>catkin</buildtool_depend>

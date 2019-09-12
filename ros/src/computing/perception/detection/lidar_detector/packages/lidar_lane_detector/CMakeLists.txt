@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(lidar_fast_and_furious)
+project(lidar_lane_detector)
 
 find_package(PCL REQUIRED)
 
@@ -34,12 +34,14 @@ find_package(catkin REQUIRED COMPONENTS
 ###################################
 catkin_package(
         CATKIN_DEPENDS std_msgs velodyne_pointcloud autoware_msgs
-        DEPENDS PCL
+        DEPENDS PCL LIBRARIES libpolynomial
 )
 
 ###########
 ## Build ##
 ###########
+add_library(libpolynomial lib/polynomial.cpp)
+add_dependencies(libpolynomial ${catkin_EXPORTED_TARGETS})
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIRS})
 
@@ -53,7 +55,21 @@ add_executable(points_accumulator_node nodes/points_accumulator/points_accumulat
 target_link_libraries(points_accumulator_node ${catkin_LIBRARIES} points_accumulator)
 add_dependencies(points_accumulator_node ${catkin_EXPORTED_TARGETS})
 
+add_library(lane_detector nodes/lane_detector/lane_detector.cpp)
+target_link_libraries(lane_detector ${catkin_LIBRARIES} libpolynomial)
+add_dependencies(lane_detector ${catkin_EXPORTED_TARGETS})
+
+add_executable(lane_detector_node nodes/lane_detector/lane_detector_node.cpp)
+target_link_libraries(lane_detector_node ${catkin_LIBRARIES} lane_detector)
+add_dependencies(lane_detector_node ${catkin_EXPORTED_TARGETS})
+
 install(TARGETS points_accumulator_node
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )
+
+install(TARGETS lane_detector_node
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
